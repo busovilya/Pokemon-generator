@@ -18,6 +18,9 @@ from keras.preprocessing.image import ImageDataGenerator
 os.environ['TF_CPP_MIN_LOG_LEVEL'] = '2'    #delete this if you want to use GPU
 
 def load_data(data_path):
+    '''
+    Read images to numpy array
+    '''
     files = os.listdir(data_path)
 
     data = []
@@ -44,6 +47,9 @@ class DCGAN:
         
         
     def get_discriminator(self):
+        '''
+        Create discriminator model
+        '''
         model = Sequential()
         model.add(Conv2D(filters=64, kernel_size=(5, 5),
                                  strides=(2, 2), padding='same',
@@ -77,6 +83,9 @@ class DCGAN:
         return model
         
     def get_generator(self):
+        '''
+        Create generator model
+        '''
         model = Sequential()
         model.add(Dense(units=4 * 4 * 512,
                             input_shape=(1, 1, 100)))
@@ -112,6 +121,9 @@ class DCGAN:
       
      
     def get_adversarial(self, discriminator, generator):
+        '''
+        Create adversarial model
+        '''
         model = Sequential()
         
         discriminator.trainable = False
@@ -126,6 +138,9 @@ class DCGAN:
         return model
     
     def save_model(self):
+        '''
+        Save all models into files
+        '''
         self.discriminator.trainable = True
         self.discriminator.save('discriminator.h5')
         self.generator.save('generator.h5')
@@ -138,14 +153,15 @@ class DCGAN:
         for epoch in range(self.epochs):
             for batch in range(batches_number):
                 real_images = self.image_generator.next()
-                real_images = (real_images - 127.5) / 127.5
-                current_batch_size = real_images.shape[0]
-                real_labels = np.ones(current_batch_size) - np.random.random_sample(current_batch_size) * 0.2
+                real_images = (real_images - 127.5) / 127.5 #normalize data to [-1,1] range
+                current_batch_size = real_images.shape[0]   #size of current batch
+                real_labels = np.ones(current_batch_size) - np.random.random_sample(current_batch_size) * 0.2 #add some noise to labels
                 
                 noise = np.random.normal(0, 1, (current_batch_size, 1, 1, 100))
-                fake_labels = np.zeros(current_batch_size) + np.random.random_sample(current_batch_size) * 0.2
+                fake_labels = np.zeros(current_batch_size) + np.random.random_sample(current_batch_size) * 0.2 #add some noise to labels
                 fake_images = self.generator.predict(noise)
                 
+                #discriminator is not being trained during adversarial training
                 self.discriminator.trainable = True
                 d_loss = self.discriminator.train_on_batch(real_images, real_labels)
                 d_loss += self.discriminator.train_on_batch(fake_images, fake_labels)
@@ -153,7 +169,7 @@ class DCGAN:
                 self.discriminator.trainable = False
                 
                 noise = np.random.normal(0, 1, (2*current_batch_size, 1, 1, 100))
-                labels = np.ones(2*current_batch_size) - np.random.random_sample(2*current_batch_size) * 0.2
+                labels = np.ones(2*current_batch_size) - np.random.random_sample(2*current_batch_size) * 0.2 #add some noise to labels
                 a_loss = self.adversarial.train_on_batch(noise, labels)
                 a_losses.append(a_loss)
             print(f'Epoch:{epoch+1}\tDiscriminator losss: {d_losses[-1]}\tAdverserial loss:{a_losses[-1]}')
@@ -169,11 +185,11 @@ class DCGAN:
 
 if __name__=='__main__':
     if len(sys.argv)==4:
-        data_path = sys.argv[1]
-        epochs = int(sys.argv[2])
-        batches = int(sys.argv[3])
+        data_path = sys.argv[1] #path to images
+        epochs = int(sys.argv[2]) #number of epochs
+        batch_size = int(sys.argv[3]) #batch size
         data = load_data(data_path)
-        gan = DCGAN(data, epochs, batches)
+        gan = DCGAN(data, epochs, batch_size)
         gan.train()
     else:
         print("Wrong number of arguments!\nType 'python3 gan.py [path to images] [number of train epochs] [size of batches]'")
